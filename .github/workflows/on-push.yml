@@ -14,6 +14,8 @@ jobs:
         uses: actions/setup-go@v2.1.3
         with:
           go-version: ${{ env.GO_VERSION }}
+      - name: Install exiftool
+        run: sudo apt-get install -y exiftool
       - name: Run tests
         run: |
           go install gotest.tools/gotestsum@latest
@@ -32,8 +34,11 @@ jobs:
         uses: actions/setup-go@v2.1.3
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Run tests
-        run: |
-          go install gotest.tools/gotestsum@latest
-          gotestsum
-          go vet ./...
+      - name: Install exiftool
+        run: choco install exiftool
+      - name: Setup gotestsum
+        run: go install gotest.tools/gotestsum@latest
+      - name: Run Tests
+        run: gotestsum
+      - name: Run go-vet
+        run: go vet ./...
