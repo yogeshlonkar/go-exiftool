@@ -17,40 +17,13 @@ var (
 	ValidNamespace = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
 )
 
-func createTempConfig(namespace, name string) (file *os.File, err error) {
-	config := `%%Image::ExifTool::UserDefined = (
-    'Image::ExifTool::XMP::Main' => {
-        %[1]s => {
-            SubDirectory => {
-                TagTable => 'Image::ExifTool::UserDefined::%[1]s',
-            },
-        },
-    }
-);
-%%Image::ExifTool::UserDefined::%[1]s = (
-    GROUPS => { 0 => 'XMP', 1 => 'XMP-%[1]s' },
-    NAMESPACE => { '%[1]s' => 'http://ns.example.com/%[1]s/1.0/' },
-    WRITABLE => 'string',
-    %[2]s => { },
-);
-`
-	file, err = ioutil.TempFile("", "exif.config")
-	if err != nil {
-		return nil, err
-	}
-	file.WriteString(fmt.Sprintf(config, namespace, name))
-	file.Close()
-
-	return file, nil
+// SetMetadata set metadata on files
+func SetMetadata(configFile, name string, value interface{}, files ...string) (fms []FileMetadata, err error) {
+	return SetMetadataWithConfig("", name, value, files...)
 }
 
-// SetMetadata set metadata on files. namespace must be alphanumeric starting matching pattern ^[a-zA-Z0-9]+ and name must be alphanumeric starting with capital letter matching pattern ^[A-Z][a-zA-Z0-9]*$
-func SetCustomMetadata(name string, value interface{}, files ...string) ([]FileMetadata, error) {
-	return SetMetadata("custom", name, value, files...)
-}
-
-// SetMetadata set metadata on files. namespace must be alphanumeric starting matching pattern ^[a-zA-Z0-9]+ and name must be alphanumeric starting with capital letter matching pattern ^[A-Z][a-zA-Z0-9]*$
-func SetMetadata(namespace, name string, value interface{}, files ...string) ([]FileMetadata, error) {
+// SetCustomMetadata sets user defined metadata on files. namespace must be alphanumeric starting matching pattern ^[a-zA-Z0-9]+ and name must be alphanumeric starting with capital letter matching pattern ^[A-Z][a-zA-Z0-9]*$
+func SetCustomMetadata(namespace, name string, value interface{}, files ...string) ([]FileMetadata, error) {
 	if namespace == "" {
 		return nil, errors.New("namespace must be provided to add custom metadata")
 	}
@@ -68,10 +41,17 @@ func SetMetadata(namespace, name string, value interface{}, files ...string) ([]
 		return nil, err
 	}
 	defer os.Remove(tempConfig.Name())
+	return SetMetadataWithConfig(tempConfig.Name(), "xmp-"+namespace+":"+name, value, files...)
+}
 
+// SetMetadataWithConfig sets metadata on files using given config
+func SetMetadataWithConfig(configFile, name string, value interface{}, files ...string) (fms []FileMetadata, err error) {
 	e := Exiftool{}
 	defer e.Close()
-	args := []string{"-config", tempConfig.Name(), "-overwrite_original"}
+	args := []string{"-overwrite_original"}
+	if configFile != "" {
+		args = []string{"-config", configFile, "-overwrite_original"}
+	}
 	args = append(args, initArgs...)
 	cmd := exec.Command(binary, args...)
 	r, w := io.Pipe()
@@ -92,7 +72,7 @@ func SetMetadata(namespace, name string, value interface{}, files ...string) ([]
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	fms := make([]FileMetadata, len(files))
+	fms = make([]FileMetadata, len(files))
 
 	for i, f := range files {
 		fms[i].File = f
@@ -108,7 +88,7 @@ func SetMetadata(namespace, name string, value interface{}, files ...string) ([]
 			continue
 		}
 
-		fmt.Fprintln(e.stdin, fmt.Sprintf(`-xmp-%s:%s=%v`, namespace, name, value))
+		fmt.Fprintln(e.stdin, fmt.Sprintf(`-%s=%v`, name, value))
 		fmt.Fprintln(e.stdin, f)
 		fmt.Fprintln(e.stdin, executeArg)
 
@@ -144,4 +124,31 @@ func SetMetadata(namespace, name string, value interface{}, files ...string) ([]
 	}
 
 	return fms, nil
+}
+
+func createTempConfig(namespace, name string) (file *os.File, err error) {
+	config := `%%Image::ExifTool::UserDefined = (
+    'Image::ExifTool::XMP::Main' => {
+        %[1]s => {
+            SubDirectory => {
+                TagTable => 'Image::ExifTool::UserDefined::%[1]s',
+            },
+        },
+    }
+);
+%%Image::ExifTool::UserDefined::%[1]s = (
+    GROUPS => { 0 => 'XMP', 1 => 'XMP-%[1]s' },
+    NAMESPACE => { '%[1]s' => 'http://ns.example.com/%[1]s/1.0/' },
+    WRITABLE => 'string',
+    %[2]s => { },
+);
+`
+	file, err = ioutil.TempFile("", "exif.config")
+	if err != nil {
+		return nil, err
+	}
+	file.WriteString(fmt.Sprintf(config, namespace, name))
+	file.Close()
+
+	return file, nil
 }
