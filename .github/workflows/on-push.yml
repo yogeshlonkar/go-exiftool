@@ -1,0 +1,39 @@
+on: push
+
+jobs:
+  test-on-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GO_VERSION: 1.16
+      GOOS: linux
+      GOARCH: amd64
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Go environment
+        uses: actions/setup-go@v2.1.3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Run tests
+        run: |
+          go install gotest.tools/gotestsum@latest
+          gotestsum
+          go vet ./...
+  test-on-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      GO_VERSION: 1.16
+      GOOS: windows
+      GOARCH: amd64
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Go environment
+        uses: actions/setup-go@v2.1.3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Run tests
+        run: |
+          go install gotest.tools/gotestsum@latest
+          gotestsum
+          go vet ./...
