@@ -29,7 +29,7 @@ func TestSetMetadata(t *testing.T) {
 			fms, err := e.SetMetadata(true, "Make", "yogesh", testFile)
 			assert.Nilf(t, err, "error not nil: %v", err)
 			if assert.Equal(t, 1, len(fms)) {
-				fm := fms[0]
+				fm := e.ExtractMetadata(testFile)[0]
 				t.Log(fm)
 				assert.Equal(t, tc.expOk, fm.Err == nil)
 				assert.Equalf(t, "yogesh", fm.Fields["Make"], "custom metadata not set")
@@ -62,7 +62,7 @@ func TestSetUserDefinedMetadata(t *testing.T) {
 			fms, err := e.SetUserDefinedMetadata(true, "OriginalFilename", "this_is_long", testFile)
 			assert.Nilf(t, err, "error not nil: %v", err)
 			if assert.Equal(t, 1, len(fms)) {
-				fm := fms[0]
+				fm := e.ExtractMetadata(testFile)[0]
 				t.Log(fm)
 				assert.Equal(t, tc.expOk, fm.Err == nil, "err not nil", err)
 				assert.Equal(t, "this_is_long", fm.Fields["OriginalFilename"], "custom metadata not set file")

@@ -1,7 +1,6 @@
 package exiftool
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -104,27 +103,6 @@ func (e *ExifSettool) SetMetadata(overwrite bool, name string, value interface{}
 			fms[i].Err = fmt.Errorf("error while writting stdMergedOut: %w", e.scanMergedOut.Err())
 			continue
 		}
-
-		// read all metadata
-		for _, curA := range extractArgs {
-			fmt.Fprintln(e.stdin, curA)
-		}
-		fmt.Fprintln(e.stdin, f)
-		fmt.Fprintln(e.stdin, executeArg)
-		if !e.scanMergedOut.Scan() {
-			fms[i].Err = fmt.Errorf("nothing on stdMergedOut")
-			continue
-		}
-		if e.scanMergedOut.Err() != nil {
-			fms[i].Err = fmt.Errorf("error while reading stdMergedOut: %w", e.scanMergedOut.Err())
-			continue
-		}
-		var m []map[string]interface{}
-		if err := json.Unmarshal(e.scanMergedOut.Bytes(), &m); err != nil {
-			fms[i].Err = fmt.Errorf("error during unmarshaling (%v): %w)", string(e.scanMergedOut.Bytes()), err)
-			continue
-		}
-		fms[i].Fields = m[0]
 	}
 	return fms, nil
 }
