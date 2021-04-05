@@ -33,6 +33,7 @@ type Exiftool struct {
 	buffer        []byte
 	bufferMaxSize int
 	extraInitArgs []string
+	configFile    string
 }
 
 // NewExiftool instanciates a new Exiftool with configuration functions. If anything went
@@ -45,8 +46,12 @@ func NewExiftool(opts ...func(*Exiftool) error) (*Exiftool, error) {
 			return nil, fmt.Errorf("error when configuring exiftool: %w", err)
 		}
 	}
-
-	args := append(initArgs, e.extraInitArgs...)
+	args := []string{"-overwrite_original"}
+	if e.configFile != "" {
+		args = []string{"-config", e.configFile, "-overwrite_original"}
+	}
+	args = append(args, initArgs...)
+	args = append(args, e.extraInitArgs...)
 	cmd := exec.Command(binary, args...)
 	r, w := io.Pipe()
 	e.stdMergedOut = r
@@ -74,6 +79,9 @@ func NewExiftool(opts ...func(*Exiftool) error) (*Exiftool, error) {
 
 // Close closes exiftool. If anything went wrong, a non empty error will be returned
 func (e *Exiftool) Close() error {
+	if e.configFile != "" {
+		defer os.Remove(e.configFile)
+	}
 	e.lock.Lock()
 	defer e.lock.Unlock()
 

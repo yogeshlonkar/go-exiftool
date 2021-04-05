@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCustomMetadata(t *testing.T) {
+func TestSetMetadata(t *testing.T) {
 	var tcs = []struct {
 		tcID   string
 		inFile string
@@ -17,14 +17,16 @@ func TestCustomMetadata(t *testing.T) {
 	}{
 		{"single", "./testdata/20190404_131804.jpg", []bool{true}},
 	}
-
+	e, err := NewExifSettool("")
+	assert.Nil(t, err)
+	defer e.Close()
 	for _, tc := range tcs {
 		tc := tc // Pin variable
 		t.Run(tc.tcID, func(t *testing.T) {
 			testFile := tc.inFile + "_test"
 			copyFile(tc.inFile, testFile)
 			defer os.Remove(testFile)
-			fms, err := SetMetadata("", "Make", "yogesh", testFile)
+			fms, err := e.SetMetadata("Make", "yogesh", testFile)
 			assert.Nilf(t, err, "error not nil: %v", err)
 			if assert.Equal(t, len(tc.expOk), len(fms)) {
 				for i, fm := range fms {
@@ -36,7 +38,8 @@ func TestCustomMetadata(t *testing.T) {
 		})
 	}
 }
-func TestSetCustomMetadata(t *testing.T) {
+
+func TestSetUserDefinedMetadata(t *testing.T) {
 	var tcs = []struct {
 		tcID   string
 		inFile string
@@ -45,33 +48,45 @@ func TestSetCustomMetadata(t *testing.T) {
 		{"single", "./testdata/20190404_131804.jpg", []bool{true}},
 		{"empty", "./testdata/empty.jpg", []bool{true}},
 	}
-
+	e, err := NewExifSettool("custom", "OriginalFilename")
+	assert.Nil(t, err)
+	defer e.Close()
 	for _, tc := range tcs {
 		tc := tc // Pin variable
 		t.Run(tc.tcID, func(t *testing.T) {
 			testFile := tc.inFile + "_test"
 			copyFile(tc.inFile, testFile)
 			defer os.Remove(testFile)
-			fms, err := SetCustomMetadata("custom", "OriginalFilename", "this_is_long", testFile)
+			fms, err := e.SetUserDefinedMetadata("OriginalFilename", "this_is_long", testFile)
 			assert.Nilf(t, err, "error not nil: %v", err)
 			if assert.Equal(t, len(tc.expOk), len(fms)) {
 				for i, fm := range fms {
 					t.Log(fm)
-					assert.Equalf(t, tc.expOk[i], fm.Err == nil, "#%v different", i)
-					assert.Equalf(t, "this_is_long", fm.Fields["OriginalFilename"], "custom metadata not set", i)
+					assert.Equal(t, tc.expOk[i], fm.Err == nil, "err not nil", err)
+					assert.Equal(t, "this_is_long", fm.Fields["OriginalFilename"], "custom metadata not set file")
 				}
 			}
 		})
 	}
 }
 
-func TestSetCustomMetadataErrorName(t *testing.T) {
-	_, err := SetCustomMetadata("abc", "Nam eabc", 1234, "./testdata/20190404_131804.jpg")
-	assert.Equal(t, errors.New("name must be alphanumeric starting with capital letter matching pattern ^[A-Z][a-zA-Z0-9]*$"), err)
+func TestSetUserDefinedMetadataErrorTagNotConfigured(t *testing.T) {
+	e, err := NewExifSettool("abc", "X1")
+	defer e.Close()
+	_, err = e.SetUserDefinedMetadata("OriginalFilename", "this_is_long", "./testdata/empty.jpg")
+	assert.Equal(t, errors.New("tagName OriginalFilename not configured while creating NewExifSettool"), err)
+
 }
 
-func TestSetCustomMetadataErrorNamespace(t *testing.T) {
-	_, err := SetCustomMetadata("A-123", "Name", true, "./testdata/20190404_131804.jpg")
+func TestNewExifSettoolErrorTagName(t *testing.T) {
+	e, err := NewExifSettool("abc", "Nam eabc")
+	assert.Nil(t, e)
+	assert.Equal(t, errors.New("tagName must be alphanumeric starting with capital letter matching pattern ^[A-Z][a-zA-Z0-9]*$"), err)
+}
+
+func TestNewExifSettoolErrorTErrorNamespace(t *testing.T) {
+	e, err := NewExifSettool("A-123", "Name")
+	assert.Nil(t, e)
 	assert.Equal(t, errors.New("namespace must be alphanumeric starting matching pattern ^[a-zA-Z0-9]+$"), err)
 }
 
