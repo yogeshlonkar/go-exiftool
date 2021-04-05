@@ -13,9 +13,9 @@ func TestSetMetadata(t *testing.T) {
 	var tcs = []struct {
 		tcID   string
 		inFile string
-		expOk  []bool
+		expOk  bool
 	}{
-		{"single", "./testdata/20190404_131804.jpg", []bool{true}},
+		{"single", "./testdata/20190404_131804.jpg", true},
 	}
 	e, err := NewExifSettool("")
 	assert.Nil(t, err)
@@ -26,14 +26,13 @@ func TestSetMetadata(t *testing.T) {
 			testFile := tc.inFile + "_test"
 			copyFile(tc.inFile, testFile)
 			defer os.Remove(testFile)
-			fms, err := e.SetMetadata("Make", "yogesh", testFile)
+			fms, err := e.SetMetadata(true, "Make", "yogesh", testFile)
 			assert.Nilf(t, err, "error not nil: %v", err)
-			if assert.Equal(t, len(tc.expOk), len(fms)) {
-				for i, fm := range fms {
-					t.Log(fm)
-					assert.Equalf(t, tc.expOk[i], fm.Err == nil, "#%v different", i)
-					assert.Equalf(t, "yogesh", fm.Fields["Make"], "custom metadata not set", i)
-				}
+			if assert.Equal(t, 1, len(fms)) {
+				fm := fms[0]
+				t.Log(fm)
+				assert.Equal(t, tc.expOk, fm.Err == nil)
+				assert.Equalf(t, "yogesh", fm.Fields["Make"], "custom metadata not set")
 			}
 		})
 	}
@@ -43,28 +42,30 @@ func TestSetUserDefinedMetadata(t *testing.T) {
 	var tcs = []struct {
 		tcID   string
 		inFile string
-		expOk  []bool
+		expOk  bool
 	}{
-		{"single", "./testdata/20190404_131804.jpg", []bool{true}},
-		{"empty", "./testdata/empty.jpg", []bool{true}},
+		{"single", "./testdata/20190404_131804.jpg", true},
+		{"empty", "./testdata/empty.jpg", true},
+		{"three", "./testdata/easter-4945288_640.jpg", true},
+		{"four", "./testdata/eggs-3216877_640.jpg", true},
+		{"five", "./testdata/willow-catkin-4949064_640.jpg", true},
 	}
 	e, err := NewExifSettool("custom", "OriginalFilename")
 	assert.Nil(t, err)
 	defer e.Close()
 	for _, tc := range tcs {
-		tc := tc // Pin variable
+		tc := tc
 		t.Run(tc.tcID, func(t *testing.T) {
 			testFile := tc.inFile + "_test"
 			copyFile(tc.inFile, testFile)
 			defer os.Remove(testFile)
-			fms, err := e.SetUserDefinedMetadata("OriginalFilename", "this_is_long", testFile)
+			fms, err := e.SetUserDefinedMetadata(true, "OriginalFilename", "this_is_long", testFile)
 			assert.Nilf(t, err, "error not nil: %v", err)
-			if assert.Equal(t, len(tc.expOk), len(fms)) {
-				for i, fm := range fms {
-					t.Log(fm)
-					assert.Equal(t, tc.expOk[i], fm.Err == nil, "err not nil", err)
-					assert.Equal(t, "this_is_long", fm.Fields["OriginalFilename"], "custom metadata not set file")
-				}
+			if assert.Equal(t, 1, len(fms)) {
+				fm := fms[0]
+				t.Log(fm)
+				assert.Equal(t, tc.expOk, fm.Err == nil, "err not nil", err)
+				assert.Equal(t, "this_is_long", fm.Fields["OriginalFilename"], "custom metadata not set file")
 			}
 		})
 	}
@@ -73,7 +74,7 @@ func TestSetUserDefinedMetadata(t *testing.T) {
 func TestSetUserDefinedMetadataErrorTagNotConfigured(t *testing.T) {
 	e, err := NewExifSettool("abc", "X1")
 	defer e.Close()
-	_, err = e.SetUserDefinedMetadata("OriginalFilename", "this_is_long", "./testdata/empty.jpg")
+	_, err = e.SetUserDefinedMetadata(true, "OriginalFilename", "this_is_long", "./testdata/empty.jpg")
 	assert.Equal(t, errors.New("tagName OriginalFilename not configured while creating NewExifSettool"), err)
 
 }

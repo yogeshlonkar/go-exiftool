@@ -46,9 +46,9 @@ func NewExiftool(opts ...func(*Exiftool) error) (*Exiftool, error) {
 			return nil, fmt.Errorf("error when configuring exiftool: %w", err)
 		}
 	}
-	args := []string{"-overwrite_original"}
+	args := make([]string, 0)
 	if e.configFile != "" {
-		args = []string{"-config", e.configFile, "-overwrite_original"}
+		args = []string{"-config", e.configFile}
 	}
 	args = append(args, initArgs...)
 	args = append(args, e.extraInitArgs...)

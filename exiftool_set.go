@@ -58,8 +58,9 @@ func NewExifSettool(namespace string, tagNames ...string) (*ExifSettool, error) 
 	}, nil
 }
 
-// SetUserDefinedMetadata sets user defined metadata on files. Will return error if tagName not configured with ExifSettool
-func (e *ExifSettool) SetUserDefinedMetadata(tagName string, value interface{}, files ...string) ([]FileMetadata, error) {
+// SetUserDefinedMetadata sets user defined metadata on files. If overwrite is true will overwrite existing file and not keep original
+// Will return error if tagName not configured with ExifSettool
+func (e *ExifSettool) SetUserDefinedMetadata(overwrite bool, tagName string, value interface{}, files ...string) ([]FileMetadata, error) {
 	hasConfigure := false
 	for _, configuredTagName := range e.tagNames {
 		if configuredTagName == tagName {
@@ -70,11 +71,11 @@ func (e *ExifSettool) SetUserDefinedMetadata(tagName string, value interface{}, 
 	if !hasConfigure {
 		return nil, fmt.Errorf("tagName %s not configured while creating NewExifSettool", tagName)
 	}
-	return e.SetMetadata("xmp-"+e.namespace+":"+tagName, value, files...)
+	return e.SetMetadata(overwrite, "xmp-"+e.namespace+":"+tagName, value, files...)
 }
 
-// SetMetadata sets metadata on files
-func (e *ExifSettool) SetMetadata(name string, value interface{}, files ...string) (fms []FileMetadata, err error) {
+// SetMetadata sets metadata on files. If overwrite is true will overwrite existing file and not keep original
+func (e *ExifSettool) SetMetadata(overwrite bool, name string, value interface{}, files ...string) (fms []FileMetadata, err error) {
 	fms = make([]FileMetadata, len(files))
 	for i, f := range files {
 		fms[i].File = f
@@ -88,6 +89,9 @@ func (e *ExifSettool) SetMetadata(name string, value interface{}, files ...strin
 		}
 
 		// set metadata
+		if overwrite {
+			fmt.Fprintln(e.stdin, "-overwrite_original")
+		}
 		fmt.Fprintln(e.stdin, fmt.Sprintf(`-%s=%v`, name, value))
 		fmt.Fprintln(e.stdin, f)
 		fmt.Fprintln(e.stdin, executeArg)
@@ -146,9 +150,9 @@ func createTempConfig(namespace string, tagNames ...string) (file *os.File, err 
 	}
 	config = fmt.Sprintf(config, namespace)
 	for _, tagName := range tagNames {
-		config += fmt.Sprintf(`%[1]s => { },\n`, tagName)
+		config += fmt.Sprintf("    %[1]s => { },\n", tagName)
 	}
-	config += `);\n`
+	config += ");\n"
 	file.WriteString(config)
 	file.Close()
 	return file, nil
